@@ -18,7 +18,7 @@ COLOR_NC='\033[0m'
 
 # email input validation regex
 email_regex="^(([A-Za-z0-9]+((\.|\-|\_|\+)?[A-Za-z0-9]?)*[A-Za-z0-9]+)|[A-Za-z0-9]+)@(([A-Za-z0-9]+)+((\.|\-|\_)?([A-Za-z0-9]+)+)*)+\.([A-Za-z]{2,})+$"
-password_charset='A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~'
+password_charset='A-Za-z0-9!@#%^&*()_+-='
 
 # -------------- Visual functions -------------- #
 
