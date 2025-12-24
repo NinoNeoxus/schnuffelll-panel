@@ -217,17 +217,63 @@ EOF
 setup_nginx() {
   output "Configuring Nginx..."
   
-  # Download Nginx config
-  curl -sSL -o /etc/nginx/sites-available/schnuffelll.conf "$GITHUB_BASE_URL/installer/schnuffelll.conf"
-  sed -i "s|<domain>|$FQDN|g" /etc/nginx/sites-available/schnuffelll.conf
+  # Remove default config
+  rm -f /etc/nginx/sites-enabled/default
 
-  # Enable site and remove default
+  # Create Nginx config inline
+  cat > /etc/nginx/sites-available/schnuffelll.conf <<EOF
+server {
+    listen 80;
+    server_name $FQDN;
+    root /var/www/schnuffelll/panel/public;
+
+    index index.php;
+
+    charset utf-8;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    access_log off;
+    error_log  /var/log/nginx/schnuffelll.app-error.log error;
+
+    # Allow larger file uploads
+    client_max_body_size 100m;
+    client_body_timeout 120s;
+
+    sendfile off;
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param PHP_VALUE "upload_max_filesize = 100M \n post_max_size=100M";
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_intercept_errors off;
+        fastcgi_buffer_size 16k;
+        fastcgi_buffers 4 16k;
+        fastcgi_connect_timeout 300;
+        fastcgi_send_timeout 300;
+        fastcgi_read_timeout 300;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOF
+
+  # Enable site
   ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/schnuffelll.conf
-  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
   
-  # Test and reload
-  nginx -t
-  systemctl reload nginx
+  # Restart Nginx
+  systemctl restart nginx
   
   success "Nginx configured!"
 }

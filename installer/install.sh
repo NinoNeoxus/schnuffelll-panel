@@ -86,11 +86,11 @@ uninstall() {
 }
 
 install_panel() {
-    run_remote_script "installer/installers/panel.sh?v=$(date +%s)"
+    run_remote_script "installer/installers/panel.sh?v=NGINX_FIX_$(date +%s)"
 }
 
 install_wings() {
-    run_remote_script "installer/installers/wings.sh?v=$(date +%s)"
+    run_remote_script "installer/installers/wings.sh?v=NGINX_FIX_$(date +%s)"
 }
 
 menu() {
