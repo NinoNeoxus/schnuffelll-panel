@@ -35,6 +35,10 @@ Route::middleware(['auth'])->group(function () {
         
         // Nodes
         Route::resource('nodes', NodeController::class);
+        Route::get('/nodes/{node}/configuration', [NodeController::class, 'configuration'])->name('nodes.configuration');
+        Route::get('/nodes/{node}/configuration.yml', [NodeController::class, 'configurationYaml'])->name('nodes.configuration.yaml');
+        Route::post('/nodes/{node}/reset-token', [NodeController::class, 'resetToken'])->name('nodes.reset-token');
+
         
         // Users
         Route::resource('users', UserController::class);

@@ -36,22 +36,65 @@ class NodeController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'location_id' => 'required|exists:locations,id',
             'fqdn' => 'required|string',
             'scheme' => 'required|in:http,https',
             'memory' => 'required|integer',
             'disk' => 'required|integer',
+            'daemon_listen' => 'nullable|integer',
+            'daemon_sftp' => 'nullable|integer',
+            'behind_proxy' => 'boolean',
         ]);
 
-        // Generate Token automatically
-        $validated['daemon_token'] = Str::random(64);
-        $validated['daemon_token_id'] = Str::random(16);
+        // Generate UUID and Token automatically
+        $validated['uuid'] = (string) Str::uuid();
+        $tokens = Node::generateTokens();
+        $validated['daemon_token'] = $tokens['daemon_token'];
+        $validated['daemon_token_id'] = $tokens['daemon_token_id'];
+        $validated['daemon_listen'] = $validated['daemon_listen'] ?? 8080;
+        $validated['daemon_sftp'] = $validated['daemon_sftp'] ?? 2022;
         
         $node = Node::create($validated);
 
-        return redirect()->route('admin.nodes.index')
-            ->with('success', 'Node created successfully! Token: ' . $validated['daemon_token']);
+        return redirect()->route('admin.nodes.show', $node)
+            ->with('success', 'Node created successfully! View configuration below.');
     }
+
+    /**
+     * Get the configuration for Wings.
+     */
+    public function configuration(Node $node)
+    {
+        return response()->json($node->getConfiguration());
+    }
+
+    /**
+     * Get the configuration in YAML format.
+     */
+    public function configurationYaml(Node $node)
+    {
+        return response($node->getYamlConfiguration(), 200, [
+            'Content-Type' => 'text/yaml',
+            'Content-Disposition' => 'inline; filename="config.yml"',
+        ]);
+    }
+
+    /**
+     * Regenerate daemon token for a node.
+     */
+    public function resetToken(Node $node)
+    {
+        $tokens = Node::generateTokens();
+        $node->update([
+            'daemon_token' => $tokens['daemon_token'],
+            'daemon_token_id' => $tokens['daemon_token_id'],
+        ]);
+
+        return redirect()->route('admin.nodes.show', $node)
+            ->with('success', 'Daemon token regenerated successfully!');
+    }
+
 
     /**
      * Display the specified node.

@@ -115,16 +115,80 @@
 
     <!-- Configuration Token -->
     <div class="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-700">
+        <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
             <h3 class="text-lg font-medium text-white">Configuration</h3>
+            <div class="flex space-x-2">
+                <a href="{{ route('admin.nodes.configuration.yaml', $node) }}" target="_blank" 
+                   class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                    Download config.yml
+                </a>
+                <form action="{{ route('admin.nodes.reset-token', $node) }}" method="POST" 
+                      onsubmit="return confirm('Are you sure? This will invalidate the current token.');">
+                    @csrf
+                    <button type="submit" class="rounded-md bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-600">
+                        Reset Token
+                    </button>
+                </form>
+            </div>
         </div>
-        <div class="p-6">
-            <p class="text-sm text-slate-400 mb-4">Use the following configuration for your Wings daemon config.yml:</p>
-            <div class="bg-slate-900 rounded-md p-4 font-mono text-sm text-slate-300 overflow-x-auto">
-                <pre>
-remote: '{{ url('/') }}'
-token: '{{ $node->daemon_token ?? 'HIDDEN' }}'
-token_id: '{{ $node->daemon_token_id ?? 'HIDDEN' }}'</pre>
+        <div class="p-6 space-y-6">
+            <!-- Auto-deploy Command -->
+            <div>
+                <h4 class="text-sm font-semibold text-slate-400 mb-2">Auto-Deploy Command</h4>
+                <p class="text-xs text-slate-500 mb-2">Run this command on your node to automatically configure Wings:</p>
+                <div class="bg-slate-900 rounded-md p-4 font-mono text-sm text-green-400 overflow-x-auto">
+                    <code>cd /etc/pterodactyl && sudo wings configure --panel-url {{ url('/') }} --token {{ $node->daemon_token }} --node {{ $node->id }}</code>
+                </div>
+            </div>
+
+            <!-- Or Manual Config -->
+            <div>
+                <h4 class="text-sm font-semibold text-slate-400 mb-2">Manual Configuration (config.yml)</h4>
+                <p class="text-xs text-slate-500 mb-2">Paste this into <code class="text-blue-400">/etc/pterodactyl/config.yml</code>:</p>
+                <div class="bg-slate-900 rounded-md p-4 font-mono text-xs text-slate-300 overflow-x-auto max-h-96">
+                    <pre>debug: false
+uuid: {{ $node->uuid ?? 'GENERATE_UUID' }}
+token_id: {{ $node->daemon_token_id }}
+token: {{ $node->daemon_token }}
+
+api:
+  host: 0.0.0.0
+  port: {{ $node->daemon_listen ?? 8080 }}
+  ssl:
+    enabled: {{ ($node->scheme === 'https' && !$node->behind_proxy) ? 'true' : 'false' }}
+    cert: /etc/letsencrypt/live/{{ strtolower($node->fqdn) }}/fullchain.pem
+    key: /etc/letsencrypt/live/{{ strtolower($node->fqdn) }}/privkey.pem
+  upload_limit: 100
+
+system:
+  data: /var/lib/pterodactyl/volumes
+  sftp:
+    bind_port: {{ $node->daemon_sftp ?? 2022 }}
+
+allowed_mounts: []
+
+remote: {{ url('/') }}</pre>
+                </div>
+            </div>
+
+            <!-- Connection Details Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-700">
+                <div>
+                    <p class="text-xs text-slate-500">Node UUID</p>
+                    <p class="text-white font-mono text-sm truncate">{{ $node->uuid ?? 'N/A' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Token ID</p>
+                    <p class="text-white font-mono text-sm">{{ $node->daemon_token_id }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Daemon Port</p>
+                    <p class="text-white font-mono text-sm">{{ $node->daemon_listen ?? 8080 }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">SFTP Port</p>
+                    <p class="text-white font-mono text-sm">{{ $node->daemon_sftp ?? 2022 }}</p>
+                </div>
             </div>
         </div>
     </div>

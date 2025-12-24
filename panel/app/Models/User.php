@@ -18,9 +18,13 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
+        'name_first',
+        'name_last',
         'email',
         'password',
         'root_admin',
+        'external_id',
     ];
 
     /**
@@ -43,4 +47,28 @@ class User extends Authenticatable
         'password' => 'hashed',
         'root_admin' => 'boolean',
     ];
+
+    /**
+     * Get the user's full name.
+     */
+    public function getFullNameAttribute(): string
+    {
+        return trim(($this->name_first ?? '') . ' ' . ($this->name_last ?? '')) ?: $this->name ?? '';
+    }
+
+    /**
+     * Check if user is admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->root_admin === true;
+    }
+
+    /**
+     * Servers owned by this user.
+     */
+    public function servers()
+    {
+        return $this->hasMany(Server::class, 'owner_id');
+    }
 }
