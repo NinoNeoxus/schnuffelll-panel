@@ -76,26 +76,44 @@ setup_app() {
   output "Setting up Schnuffelll Panel..."
   mkdir -p /var/www/schnuffelll
   
-  # In a real scenario, we might clone from git or use local files
-  # Assuming we are running this from the root of the repo or moving files
-  # For now, we will assume files are copied to /var/www/schnuffelll manually or by the wrapper
+  # Download panel source code from GitHub
+  output "Downloading panel source code..."
+  cd /var/www
+  rm -rf schnuffelll
+  git clone https://github.com/NinoNeoxus/schnuffelll-panel.git schnuffelll
   
-  cd /var/www/schnuffelll
+  cd /var/www/schnuffelll/panel
+  
+  # Check if .env.example exists
+  if [ ! -f .env.example ]; then
+    error "Panel source code not found or incomplete!"
+    exit 1
+  fi
+  
   cp .env.example .env
-  composer install --no-dev --optimize-autoloader
   
+  output "Installing PHP dependencies..."
+  composer install --no-dev --optimize-autoloader --no-interaction
+  
+  output "Configuring application..."
   php artisan key:generate --force
-  php artisan p:environment:setup --author="$email" --url="https://$FQDN" --timezone="UTC" --cache="redis" --session="redis" --queue="redis" --redis-host="localhost" --redis-pass="null" --redis-port="6379" --settings-ui=true
   
-  php artisan p:environment:database --host="127.0.0.1" --port="3306" --database="$MYSQL_DB" --username="$MYSQL_USER" --password="$MYSQL_PASSWORD"
+  # Write database config directly to .env
+  sed -i "s|DB_CONNECTION=.*|DB_CONNECTION=mysql|g" .env
+  sed -i "s|DB_HOST=.*|DB_HOST=127.0.0.1|g" .env
+  sed -i "s|DB_PORT=.*|DB_PORT=3306|g" .env
+  sed -i "s|DB_DATABASE=.*|DB_DATABASE=$MYSQL_DB|g" .env
+  sed -i "s|DB_USERNAME=.*|DB_USERNAME=$MYSQL_USER|g" .env
+  sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$MYSQL_PASSWORD|g" .env
+  sed -i "s|APP_URL=.*|APP_URL=https://$FQDN|g" .env
   
+  output "Running database migrations..."
   php artisan migrate --seed --force
   
-  # Create user (interactive or args)
-  php artisan p:user:make --email="$email" --admin=1
-  
+  # Set permissions
   chown -R www-data:www-data /var/www/schnuffelll
-  chmod -R 755 storage/* bootstrap/cache/
+  chmod -R 755 /var/www/schnuffelll/panel/storage
+  chmod -R 755 /var/www/schnuffelll/panel/bootstrap/cache
   
   success "Panel setup complete!"
 }
