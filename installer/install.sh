@@ -85,6 +85,14 @@ uninstall() {
   success "Uninstallation complete! You can now install clean."
 }
 
+install_panel() {
+    run_remote_script "installer/installers/panel.sh?v=$(date +%s)"
+}
+
+install_wings() {
+    run_remote_script "installer/installers/wings.sh?v=$(date +%s)"
+}
+
 menu() {
   echo "Select an installation:"
   echo "[0] Install Panel"
@@ -96,14 +104,14 @@ menu() {
   
   case $action in
     0)
-      run_remote_script "installer/installers/panel.sh"
+      install_panel
       ;;
     1)
-      run_remote_script "installer/installers/wings.sh"
+      install_wings
       ;;
     2)
-      run_remote_script "installer/installers/panel.sh"
-      run_remote_script "installer/installers/wings.sh"
+      install_panel
+      install_wings
       ;;
     3)
       uninstall

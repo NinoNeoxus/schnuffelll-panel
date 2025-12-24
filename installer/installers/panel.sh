@@ -136,7 +136,9 @@ setup_app() {
 
   # Dependencies
   output "Installing PHP dependencies..."
-  composer install --no-dev --optimize-autoloader
+  # Remove lock file to force resolution for PHP 8.2 & remove memory limits
+  rm -f composer.lock
+  COMPOSER_MEMORY_LIMIT=-1 COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
   
   # Key Generation
   php artisan key:generate --force
