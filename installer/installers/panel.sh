@@ -4,6 +4,8 @@
 # Adapted from Pterodactyl Installer
 
 set -e
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+trap 'echo "CRITICAL ERROR: \"${last_command}\" command failed with exit code $?."' ERR
 
 # Load Lib
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
