@@ -5,38 +5,49 @@ set -e
 #                                                                                    #
 #                     Schnuffelll Panel - Unified Installer                          #
 #                                                                                    #
-#     Based on pterodactyl-installer by Vilhelm Prytz <vilhelm@prytznet.se>          #
+#     Based on pterodactyl-installer by Vilhelm Prytz                                #
 #     Modified for Schnuffelll by @schnuffelll                                        #
-#                                                                                    #
-#     This script is not associated with the official Pterodactyl Project.           #
 #                                                                                    #
 #          https://github.com/NinoNeoxus/schnuffelll-panel                           #
 #                                                                                    #
 ######################################################################################
 
-# -------------------- Paths -------------------- #
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export SCRIPT_DIR
+export SCRIPT_VERSION="4.0.0"
+export GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
 
-# -------------------- Source Library -------------------- #
-source_lib() {
-    if [ -f "$SCRIPT_DIR/lib.sh" ]; then
-        source "$SCRIPT_DIR/lib.sh"
-    elif [ -f "${SCRIPT_DIR}/installer/lib.sh" ]; then
-        source "${SCRIPT_DIR}/installer/lib.sh"
-    else
-        echo "ERROR: Cannot find lib.sh"
+# -------------------- Download and Source Library -------------------- #
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
+download_lib() {
+    echo "* Downloading installer files..."
+    
+    curl -sSL "$GITHUB_BASE_URL/installer/lib.sh" -o "$TEMP_DIR/lib.sh" || {
+        echo "ERROR: Failed to download lib.sh"
         exit 1
-    fi
+    }
+    
+    mkdir -p "$TEMP_DIR/installers"
+    
+    curl -sSL "$GITHUB_BASE_URL/installer/installers/panel.sh" -o "$TEMP_DIR/installers/panel.sh" || {
+        echo "ERROR: Failed to download panel.sh"
+        exit 1
+    }
+    
+    curl -sSL "$GITHUB_BASE_URL/installer/installers/wings.sh" -o "$TEMP_DIR/installers/wings.sh" || {
+        echo "ERROR: Failed to download wings.sh"
+        exit 1
+    }
+    
+    chmod +x "$TEMP_DIR/lib.sh" "$TEMP_DIR/installers/panel.sh" "$TEMP_DIR/installers/wings.sh"
+    
+    echo "* Files downloaded successfully"
 }
 
-source_lib
+download_lib
+source "$TEMP_DIR/lib.sh"
 
-# -------------------- Check Requirements -------------------- #
-check_requirements() {
-    check_root
-    check_os_supported
-}
+export SCRIPT_DIR="$TEMP_DIR"
 
 # -------------------- Menu Functions -------------------- #
 show_menu() {
@@ -63,31 +74,18 @@ show_menu() {
 install_panel() {
     output "Starting Panel installation..."
     echo ""
-
-    if [ -f "$SCRIPT_DIR/installers/panel.sh" ]; then
-        bash "$SCRIPT_DIR/installers/panel.sh"
-    else
-        error "Panel installer not found at: $SCRIPT_DIR/installers/panel.sh"
-        exit 1
-    fi
+    bash "$TEMP_DIR/installers/panel.sh"
 }
 
 install_wings() {
     output "Starting Wings installation..."
     echo ""
-
-    if [ -f "$SCRIPT_DIR/installers/wings.sh" ]; then
-        bash "$SCRIPT_DIR/installers/wings.sh"
-    else
-        error "Wings installer not found at: $SCRIPT_DIR/installers/wings.sh"
-        exit 1
-    fi
+    bash "$TEMP_DIR/installers/wings.sh"
 }
 
 install_both() {
     output "Installing Panel first, then Wings..."
     echo ""
-
     install_panel
 
     echo ""
@@ -120,30 +118,20 @@ uninstall_panel() {
         return
     fi
 
-    # Stop services
     systemctl stop pteroq 2>/dev/null || true
     systemctl disable pteroq 2>/dev/null || true
 
-    # Remove files
     rm -rf /var/www/schnuffelll
     rm -f /etc/nginx/sites-enabled/schnuffelll.conf
     rm -f /etc/nginx/sites-available/schnuffelll.conf
     rm -f /etc/systemd/system/pteroq.service
 
-    # Remove crontab entry
     crontab -l 2>/dev/null | grep -v "artisan schedule:run" | crontab - 2>/dev/null || true
 
-    # Reload
     systemctl daemon-reload
     systemctl reload nginx 2>/dev/null || true
 
     success "Panel uninstalled successfully"
-
-    echo ""
-    output "To completely remove the database, run:"
-    echo "  DROP DATABASE schnuffelll;"
-    echo "  DROP USER 'schnuffelll'@'127.0.0.1';"
-    echo ""
 }
 
 uninstall_wings() {
@@ -156,68 +144,56 @@ uninstall_wings() {
     echo "  - Wings configuration"
     echo "  - Wings systemd service"
     echo ""
-    warning "This will NOT remove:"
-    echo "  - Docker (needed for other services)"
-    echo "  - Server data at /var/lib/pterodactyl"
-    echo ""
 
     if ! confirm "Are you sure you want to uninstall Wings?"; then
         output "Uninstall cancelled."
         return
     fi
 
-    # Stop service
     systemctl stop wings 2>/dev/null || true
     systemctl disable wings 2>/dev/null || true
 
-    # Remove files
     rm -rf /etc/pterodactyl
     rm -f /usr/local/bin/wings
     rm -f /etc/systemd/system/wings.service
 
-    # Reload
     systemctl daemon-reload
 
     success "Wings uninstalled successfully"
-
-    echo ""
-    output "To completely remove server data, run:"
-    echo "  rm -rf /var/lib/pterodactyl"
-    echo ""
 }
 
 # -------------------- CLI Arguments -------------------- #
 handle_args() {
     case "$1" in
     --panel | -p)
-        check_requirements
+        check_os_supported
         install_panel
         exit 0
         ;;
     --wings | -w)
-        check_requirements
+        check_os_supported
         install_wings
         exit 0
         ;;
     --both | -b)
-        check_requirements
+        check_os_supported
         install_both
         exit 0
         ;;
     --uninstall-panel)
-        check_requirements
+        check_os_supported
         uninstall_panel
         exit 0
         ;;
     --uninstall-wings)
-        check_requirements
+        check_os_supported
         uninstall_wings
         exit 0
         ;;
     --help | -h)
         echo "Schnuffelll Panel Installer v${SCRIPT_VERSION}"
         echo ""
-        echo "Usage: $0 [OPTION]"
+        echo "Usage: bash <(curl -s $GITHUB_BASE_URL/installer/install.sh) [OPTION]"
         echo ""
         echo "Options:"
         echo "  -p, --panel           Install Panel only"
@@ -227,7 +203,6 @@ handle_args() {
         echo "      --uninstall-wings Uninstall Wings"
         echo "  -h, --help            Show this help message"
         echo ""
-        echo "Without options, an interactive menu will be shown."
         exit 0
         ;;
     esac
@@ -235,12 +210,11 @@ handle_args() {
 
 # -------------------- Main -------------------- #
 main() {
-    # Handle CLI arguments
     if [ -n "$1" ]; then
         handle_args "$@"
     fi
 
-    check_requirements
+    check_os_supported
 
     while true; do
         show_menu

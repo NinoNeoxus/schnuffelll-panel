@@ -11,17 +11,19 @@ set -e
 ######################################################################################
 
 # -------------------- Source Library -------------------- #
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALLER_DIR="$(dirname "$SCRIPT_DIR")"
+# Check if lib.sh already loaded (from parent install.sh)
+if ! type lib_loaded &>/dev/null; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    INSTALLER_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Source from installers folder or from root
-if [ -f "$SCRIPT_DIR/../lib.sh" ]; then
-    source "$SCRIPT_DIR/../lib.sh"
-elif [ -f "$INSTALLER_DIR/lib.sh" ]; then
-    source "$INSTALLER_DIR/lib.sh"
-else
-    echo "ERROR: Cannot find lib.sh"
-    exit 1
+    if [ -f "$SCRIPT_DIR/../lib.sh" ]; then
+        source "$SCRIPT_DIR/../lib.sh"
+    elif [ -f "$INSTALLER_DIR/lib.sh" ]; then
+        source "$INSTALLER_DIR/lib.sh"
+    else
+        echo "ERROR: Cannot find lib.sh"
+        exit 1
+    fi
 fi
 
 # -------------------- Variables -------------------- #
