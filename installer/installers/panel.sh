@@ -107,6 +107,8 @@ setup_app() {
   cp .env.example .env
   
   output "Installing PHP dependencies..."
+  # Remove lock file to force resolution for PHP 8.2
+  rm -f composer.lock
   COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
   
   output "Configuring application..."
