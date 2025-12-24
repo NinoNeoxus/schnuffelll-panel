@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Schnuffelll Magic Installer (v2.1 - Remote Fixed)
+# Schnuffelll Magic Installer (v2.2 - Uninstall Added)
 
 set -e
 
@@ -49,13 +49,50 @@ run_remote_script() {
     rm -f "$temp_file"
 }
 
+uninstall() {
+  output "WARNING: This will FULLY UNINSTALL Schnuffelll Panel & Wings!"
+  output "This includes deleting:"
+  output "- All Panel files (/var/www/schnuffelll)"
+  output "- All Wings files (/etc/pterodactyl, /var/lib/pterodactyl)"
+  output "- Nginx configurations"
+  output "- Systemd services"
+  
+  read -p "Are you absolutely sure? (type 'yes' to confirm): " confirm
+  if [[ "$confirm" != "yes" ]]; then
+    output "Aborted."
+    return
+  fi
+
+  output "Stopping services..."
+  systemctl stop schnuffelll wings nginx redis-server 2>/dev/null || true
+  
+  output "Removing Panel files..."
+  rm -rf /var/www/schnuffelll
+  rm -f /etc/nginx/sites-available/schnuffelll.conf
+  rm -f /etc/nginx/sites-enabled/schnuffelll.conf
+  rm -f /etc/systemd/system/schnuffelll.service
+  
+  output "Removing Wings files..."
+  rm -f /usr/local/bin/wings
+  rm -f /etc/systemd/system/wings.service
+  rm -rf /etc/pterodactyl
+  rm -rf /var/lib/pterodactyl
+  
+  output "Reloading system..."
+  systemctl daemon-reload
+  systemctl reload nginx 2>/dev/null || true
+  
+  success "Uninstallation complete! You can now install clean."
+}
+
 menu() {
   echo "Select an installation:"
   echo "[0] Install Panel"
   echo "[1] Install Wings"
   echo "[2] Install Both"
+  echo "[3] Uninstall All (Clean)"
   
-  read -p "Input 0-2: " action
+  read -p "Input 0-3: " action
   
   case $action in
     0)
@@ -67,6 +104,9 @@ menu() {
     2)
       run_remote_script "installer/installers/panel.sh"
       run_remote_script "installer/installers/wings.sh"
+      ;;
+    3)
+      uninstall
       ;;
     *)
       error "Invalid option"
