@@ -137,19 +137,31 @@ setup_database() {
   # Drop existing if any
   $MYSQL_CMD -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'127.0.0.1';" 2>/dev/null || true
   $MYSQL_CMD -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'localhost';" 2>/dev/null || true
+  $MYSQL_CMD -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'%';" 2>/dev/null || true
   $MYSQL_CMD -u root -e "DROP DATABASE IF EXISTS $MYSQL_DB;" 2>/dev/null || true
   
-  # Create Database & Users
-  $MYSQL_CMD -u root -e "CREATE DATABASE $MYSQL_DB;"
+  # Create Database
+  $MYSQL_CMD -u root -e "CREATE DATABASE $MYSQL_DB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  
+  # Create Users for all connection types
   $MYSQL_CMD -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
   $MYSQL_CMD -u root -e "CREATE USER '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  $MYSQL_CMD -u root -e "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';"
   
-  # Grant Privileges
+  # Grant Privileges to all
   $MYSQL_CMD -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'127.0.0.1' WITH GRANT OPTION;"
   $MYSQL_CMD -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'localhost' WITH GRANT OPTION;"
+  $MYSQL_CMD -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'%' WITH GRANT OPTION;"
   $MYSQL_CMD -u root -e "FLUSH PRIVILEGES;"
   
-  success "Database configured!"
+  # Verify database connection
+  output "Testing database connection..."
+  if $MYSQL_CMD -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "USE $MYSQL_DB;" 2>/dev/null; then
+    success "Database connection verified!"
+  else
+    error "Database connection test failed! Check MySQL configuration."
+    exit 1
+  fi
 }
 
 setup_app() {
@@ -260,11 +272,25 @@ EOF
 setup_nginx() {
   output "Configuring Nginx..."
   
+  # Remove default config
   rm -f /etc/nginx/sites-enabled/default
+  
+  # Detect PHP-FPM socket
+  PHP_FPM_SOCK="/run/php/php8.2-fpm.sock"
+  if [ -S "/var/run/php/php8.2-fpm.sock" ]; then
+    PHP_FPM_SOCK="/var/run/php/php8.2-fpm.sock"
+  elif [ -S "/run/php/php-fpm.sock" ]; then
+    PHP_FPM_SOCK="/run/php/php-fpm.sock"
+  elif [ -S "/var/run/php-fpm/www.sock" ]; then
+    PHP_FPM_SOCK="/var/run/php-fpm/www.sock"
+  fi
+  
+  output "Using PHP-FPM socket: $PHP_FPM_SOCK"
 
   cat > /etc/nginx/sites-available/schnuffelll.conf <<EOF
 server {
     listen 80;
+    listen [::]:80;
     server_name $FQDN;
     root /var/www/schnuffelll/panel/public;
 
@@ -278,7 +304,7 @@ server {
     location = /favicon.ico { access_log off; log_not_found off; }
     location = /robots.txt  { access_log off; log_not_found off; }
 
-    access_log off;
+    access_log /var/log/nginx/schnuffelll.app-access.log;
     error_log  /var/log/nginx/schnuffelll.app-error.log error;
 
     client_max_body_size 100m;
@@ -287,7 +313,7 @@ server {
 
     location ~ \.php\$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)\$;
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_pass unix:$PHP_FPM_SOCK;
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param PHP_VALUE "upload_max_filesize = 100M \n post_max_size=100M";
@@ -307,13 +333,29 @@ server {
 }
 EOF
 
-  ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/schnuffelll.conf
+  # Ensure sites-enabled directory exists
+  mkdir -p /etc/nginx/sites-enabled
+  
+  # Create symlink (force overwrite)
+  rm -f /etc/nginx/sites-enabled/schnuffelll.conf
+  ln -s /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/schnuffelll.conf
+  
+  # Verify symlink
+  if [ ! -L /etc/nginx/sites-enabled/schnuffelll.conf ]; then
+    error "Failed to create nginx symlink!"
+    exit 1
+  fi
   
   # Test config before restart
-  nginx -t
-  systemctl restart nginx
-  
-  success "Nginx configured!"
+  if nginx -t 2>&1; then
+    systemctl restart nginx
+    systemctl restart php8.2-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true
+    success "Nginx configured!"
+  else
+    error "Nginx configuration test failed!"
+    nginx -t
+    exit 1
+  fi
 }
 
 setup_ssl() {
