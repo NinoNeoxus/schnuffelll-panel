@@ -106,10 +106,14 @@ setup_app() {
   
   cp .env.example .env
   
+  # Set permissions EARLY to ensure artisan doesn't fail on cache
+  chmod -R 755 storage bootstrap/cache
+  chown -R www-data:www-data storage bootstrap/cache
+  
   output "Installing PHP dependencies..."
-  # Remove lock file to force resolution for PHP 8.2
+  # Remove lock file to force resolution for PHP 8.2 & remove memory limits
   rm -f composer.lock
-  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+  COMPOSER_MEMORY_LIMIT=-1 COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
   
   output "Configuring application..."
   php artisan key:generate --force
@@ -126,10 +130,8 @@ setup_app() {
   output "Running database migrations..."
   php artisan migrate --seed --force
   
-  # Set permissions
+  # Set final permissions
   chown -R www-data:www-data /var/www/schnuffelll
-  chmod -R 755 /var/www/schnuffelll/panel/storage
-  chmod -R 755 /var/www/schnuffelll/panel/bootstrap/cache
   
   success "Panel setup complete!"
 }
