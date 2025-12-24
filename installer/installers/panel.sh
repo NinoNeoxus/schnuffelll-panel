@@ -79,11 +79,18 @@ setup_database() {
   
   # Drop user if exists, then create fresh
   mysql -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'127.0.0.1';" 2>/dev/null || true
+  mysql -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'localhost';" 2>/dev/null || true
   mysql -u root -e "DROP DATABASE IF EXISTS $MYSQL_DB;" 2>/dev/null || true
   
-  mysql -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  # Create Database & Users
   mysql -u root -e "CREATE DATABASE $MYSQL_DB;"
+  mysql -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  mysql -u root -e "CREATE USER '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  
+  # Grant Privileges
   mysql -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'127.0.0.1' WITH GRANT OPTION;"
+  mysql -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'localhost' WITH GRANT OPTION;"
+  
   mysql -u root -e "FLUSH PRIVILEGES;"
   
   success "Database configured!"
