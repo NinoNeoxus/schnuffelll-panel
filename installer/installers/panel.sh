@@ -36,7 +36,7 @@ debian_dep() {
 
 alma_rocky_dep() {
   install_packages "epel-release http://rpms.remirepo.net/enterprise/remi-release-$OS_VER_MAJOR.rpm"
-  dnf module enable -y php:remi-8.2 # Use 8.2 for compatibility
+  dnf module enable -y php:remi-8.2
 }
 
 dep_install() {
@@ -72,9 +72,23 @@ install_composer() {
   success "Composer installed!"
 }
 
+setup_database() {
+  output "Setting up database..."
+  
+  # Drop user if exists, then create fresh
+  mysql -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'127.0.0.1';" 2>/dev/null || true
+  mysql -u root -e "DROP DATABASE IF EXISTS $MYSQL_DB;" 2>/dev/null || true
+  
+  mysql -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  mysql -u root -e "CREATE DATABASE $MYSQL_DB;"
+  mysql -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'127.0.0.1' WITH GRANT OPTION;"
+  mysql -u root -e "FLUSH PRIVILEGES;"
+  
+  success "Database configured!"
+}
+
 setup_app() {
   output "Setting up Schnuffelll Panel..."
-  mkdir -p /var/www/schnuffelll
   
   # Download panel source code from GitHub
   output "Downloading panel source code..."
@@ -93,7 +107,7 @@ setup_app() {
   cp .env.example .env
   
   output "Installing PHP dependencies..."
-  composer install --no-dev --optimize-autoloader --no-interaction
+  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
   
   output "Configuring application..."
   php artisan key:generate --force
@@ -118,6 +132,91 @@ setup_app() {
   success "Panel setup complete!"
 }
 
+setup_nginx() {
+  output "Configuring Nginx..."
+  
+  # Create Nginx config for panel
+  cat > /etc/nginx/sites-available/schnuffelll.conf <<EOF
+server {
+    listen 80;
+    server_name $FQDN;
+    root /var/www/schnuffelll/panel/public;
+
+    index index.php;
+
+    charset utf-8;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+EOF
+
+  # Enable site
+  ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/
+  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+  
+  # Test and reload
+  nginx -t
+  systemctl reload nginx
+  
+  success "Nginx configured!"
+}
+
+setup_ssl() {
+  output "Setting up SSL with Let's Encrypt..."
+  certbot --nginx -d $FQDN --non-interactive --agree-tos -m $email --redirect
+  success "SSL configured!"
+}
+
+setup_cron() {
+  output "Setting up cron job..."
+  (crontab -l 2>/dev/null; echo "* * * * * php /var/www/schnuffelll/panel/artisan schedule:run >> /dev/null 2>&1") | crontab -
+  success "Cron job configured!"
+}
+
+setup_queue() {
+  output "Setting up queue worker..."
+  
+  cat > /etc/systemd/system/schnuffelll.service <<EOF
+[Unit]
+Description=Schnuffelll Queue Worker
+After=redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php /var/www/schnuffelll/panel/artisan queue:work --sleep=3 --tries=3
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl enable schnuffelll
+  systemctl start schnuffelll
+  
+  success "Queue worker configured!"
+}
+
 # Execution Flow
 output "Schnuffelll Panel Installation"
 read -p "Input Domain (FQDN): " FQDN
@@ -125,11 +224,17 @@ read -p "Input Email: " email
 
 dep_install
 install_composer
-create_db_user "$MYSQL_USER" "$MYSQL_PASSWORD"
-create_db "$MYSQL_DB" "$MYSQL_USER"
+setup_database
 setup_app
+setup_nginx
+setup_ssl
+setup_cron
+setup_queue
 
-# Nginx & SSL
-output "Configuring Nginx & SSL..."
-certbot --nginx -d $FQDN --non-interactive --agree-tos -m $email
-success "Installation Complete! Access at https://$FQDN"
+echo ""
+success "============================================"
+success "Installation Complete!"
+success "============================================"
+success "Panel URL: https://$FQDN"
+success "Default Login: admin@schnuffelll.com / password"
+success "============================================"
