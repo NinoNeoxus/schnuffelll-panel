@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Schnuffelll Magic Installer (v2.2 - Uninstall Added)
+# Schnuffelll Magic Installer (v3.0 - Improved)
+# @author schnuffelll
 
 set -e
 
@@ -22,37 +23,34 @@ fi
 
 welcome() {
   clear
-  echo "
-   _____      _                     __  __      _ _ _ 
-  / ____|    | |                   / _|/ _|    | | | |
- | (___   ___| |__  _ __  _   _ __| |_| |_ ___| | | |
-  \___ \ / __| '_ \| '_ \| | | |/ _\` |  _|/ _ \ | | |
-  ____) | (__| | | | | | | |_| | (_| | | |  __/ | | |
- |_____/ \___|_| |_|_| |_|\__,_|\__,_|_| |_|  \___|_|_|
-                                                       
+  echo -e "
+   ${COLOR_GREEN}_____      _                     __  __      _ _ _ ${COLOR_NC}
+  ${COLOR_GREEN}/ ____|    | |                   / _|/ _|    | | | |${COLOR_NC}
+ ${COLOR_GREEN}| (___   ___| |__  _ __  _   _ __| |_| |_ ___| | | |${COLOR_NC}
+  ${COLOR_GREEN}\\___ \\ / __| '_ \\| '_ \\| | | |/ _\` |  _|/ _ \\ | | |${COLOR_NC}
+  ${COLOR_GREEN}____) | (__| | | | | | | |_| | (_| | | |  __/ | | |${COLOR_NC}
+ ${COLOR_GREEN}|_____/ \\___|_| |_|_| |_|\\__,_|\\__,_|_| |_|  \\___|_|_|${COLOR_NC}
+                                                        
   "
-  output "Schnuffelll Installer - Remote Edition"
-  output "OS: $OS $OS_VER"
+  output "Schnuffelll Installer v3.0"
+  output "OS: $OS $OS_VER ($(uname -m))"
   if [ "$LOCAL_INSTALL" == "true" ]; then
-      output "Mode: LOCAL INSTALLATION"
+      output "Mode: ${COLOR_YELLOW}LOCAL INSTALLATION${COLOR_NC}"
   fi
   echo ""
 }
 
 run_remote_script() {
     local script_path=$1
-    local local_file="$SCRIPT_DIR/$(basename "$script_path" | cut -d? -f1)" # Remove query params
+    local local_file="$SCRIPT_DIR/$(basename "$script_path" | cut -d? -f1)"
     
-    # Check if we verify local file exists in specific installers dir too
     if [ "$LOCAL_INSTALL" == "true" ]; then
-        # Try finding it in installers subdir if not in root of installer dir
         if [ ! -f "$local_file" ]; then
              local_file="$SCRIPT_DIR/installers/$(basename "$script_path" | cut -d? -f1)"
         fi
 
         if [ -f "$local_file" ]; then
             output "Executing local script: $local_file"
-            # Pass environment variables to child scripts if needed
             bash "$local_file"
             return
         fi
@@ -66,25 +64,23 @@ run_remote_script() {
     curl -sSL -o "$temp_file" "$url"
     
     if grep -q "^404: Not Found" "$temp_file" || grep -q "^Not Found" "$temp_file"; then
-        echo "CRITICAL ERROR: Could not fetch script!"
-        echo "URL: $url"
-        echo "Response: $(cat "$temp_file")"
+        error "Could not fetch script from $url"
         rm -f "$temp_file"
         exit 1
     fi
 
-    # Execute
     bash "$temp_file"
     rm -f "$temp_file"
 }
 
 uninstall() {
-  output "WARNING: This will FULLY UNINSTALL Schnuffelll Panel & Wings!"
+  warning "This will FULLY UNINSTALL Schnuffelll Panel & Wings!"
   output "This includes deleting:"
-  output "- All Panel files (/var/www/schnuffelll)"
-  output "- All Wings files (/etc/pterodactyl, /var/lib/pterodactyl)"
-  output "- Nginx configurations"
-  output "- Systemd services"
+  output "  - All Panel files (/var/www/schnuffelll)"
+  output "  - All Wings files (/etc/pterodactyl, /var/lib/pterodactyl)"
+  output "  - Nginx configurations"
+  output "  - Systemd services"
+  echo ""
   
   read -p "Are you absolutely sure? (type 'yes' to confirm): " confirm
   if [[ "$confirm" != "yes" ]]; then
@@ -93,7 +89,8 @@ uninstall() {
   fi
 
   output "Stopping services..."
-  systemctl stop schnuffelll wings nginx redis-server 2>/dev/null || true
+  systemctl stop schnuffelll wings nginx 2>/dev/null || true
+  systemctl stop redis-server 2>/dev/null || systemctl stop redis 2>/dev/null || true
   
   output "Removing Panel files..."
   rm -rf /var/www/schnuffelll
@@ -115,34 +112,48 @@ uninstall() {
 }
 
 install_panel() {
-    run_remote_script "installer/installers/panel.sh?v=SED_FIX_$(date +%s)"
+    run_remote_script "installer/installers/panel.sh?v=$(date +%s)"
+}
+
+install_panel_no_ssl() {
+    export SKIP_SSL=true
+    run_remote_script "installer/installers/panel.sh?v=$(date +%s)"
 }
 
 install_wings() {
-    run_remote_script "installer/installers/wings.sh?v=SED_FIX_$(date +%s)"
+    run_remote_script "installer/installers/wings.sh?v=$(date +%s)"
 }
 
 menu() {
-  echo "Select an installation:"
-  echo "[0] Install Panel"
-  echo "[1] Install Wings"
-  echo "[2] Install Both"
-  echo "[3] Uninstall All (Clean)"
+  echo ""
+  echo "╔════════════════════════════════════════╗"
+  echo "║       SELECT AN INSTALLATION           ║"
+  echo "╠════════════════════════════════════════╣"
+  echo "║  [0] Install Panel (with SSL)          ║"
+  echo "║  [1] Install Panel (no SSL/local)      ║"
+  echo "║  [2] Install Wings                     ║"
+  echo "║  [3] Install Panel + Wings             ║"
+  echo "║  [4] Uninstall Everything              ║"
+  echo "╚════════════════════════════════════════╝"
+  echo ""
   
-  read -p "Input 0-3: " action
+  read -p "Select option [0-4]: " action
   
   case $action in
     0)
       install_panel
       ;;
     1)
-      install_wings
+      install_panel_no_ssl
       ;;
     2)
-      install_panel
       install_wings
       ;;
     3)
+      install_panel
+      install_wings
+      ;;
+    4)
       uninstall
       ;;
     *)

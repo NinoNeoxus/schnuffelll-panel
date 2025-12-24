@@ -66,6 +66,15 @@ gen_passwd() {
   echo "$password"
 }
 
+# MySQL/MariaDB command detection
+get_mysql_cmd() {
+  if command -v mariadb &> /dev/null; then
+    echo "mariadb"
+  else
+    echo "mysql"
+  fi
+}
+
 # -------------------- MYSQL ------------------- #
 
 create_db_user() {

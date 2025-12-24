@@ -30,6 +30,11 @@ class Server extends Model
     {
         return $this->belongsTo(Allocation::class);
     }
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
     
     public function allocations()
     {

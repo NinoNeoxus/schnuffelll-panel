@@ -58,7 +58,6 @@
     </style>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    @livewireStyles
 </head>
 <body class="h-full font-sans antialiased text-slate-300 selection:bg-blue-500 selection:text-white">
     <div class="min-h-full flex flex-col">
@@ -69,29 +68,39 @@
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
                             <!-- Logo placeholder -->
-                            <h1 class="text-2xl font-bold tracking-tight text-white">
-                                <span class="text-blue-500">Schnuffe</span>lll
-                            </h1>
+                            <a href="<?php echo e(route('dashboard')); ?>">
+                                <h1 class="text-2xl font-bold tracking-tight text-white">
+                                    <span class="text-blue-500">Schnuffe</span>lll
+                                </h1>
+                            </a>
                         </div>
                         <div class="hidden md:block">
                             <div class="ml-10 flex items-baseline space-x-4">
-                                <a href="#" class="bg-slate-800 text-white px-3 py-2 rounded-md text-sm font-medium" aria-current="page">Dashboard</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Servers</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Nodes</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Settings</a>
+                                <a href="<?php echo e(route('dashboard')); ?>" class="<?php echo e(request()->routeIs('dashboard') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                                
+                                <a href="<?php echo e(route('admin.servers.index')); ?>" class="<?php echo e(request()->routeIs('admin.servers.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Servers</a>
+                                
+                                <a href="<?php echo e(route('admin.nodes.index')); ?>" class="<?php echo e(request()->routeIs('admin.nodes.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Nodes</a>
+                                
+                                <a href="<?php echo e(route('admin.locations.index')); ?>" class="<?php echo e(request()->routeIs('admin.locations.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Locations</a>
+
+                                <a href="<?php echo e(route('admin.users.index')); ?>" class="<?php echo e(request()->routeIs('admin.users.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Users</a>
+                                
+                                <a href="<?php echo e(route('admin.settings.index')); ?>" class="<?php echo e(request()->routeIs('admin.settings.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'); ?> px-3 py-2 rounded-md text-sm font-medium">Settings</a>
                             </div>
                         </div>
                     </div>
                     <!-- User Menu -->
                     <div class="hidden md:block">
                         <div class="ml-4 flex items-center md:ml-6 space-x-4">
-                             <div class="text-sm text-slate-400">Administrator</div>
+                             <div class="text-sm text-slate-400"><?php echo e(Auth::user()->name ?? 'Guest'); ?></div>
                              <form method="POST" action="<?php echo e(route('logout')); ?>">
                                 <?php echo csrf_field(); ?>
                                 <button type="submit" class="text-slate-400 hover:text-white text-sm font-medium transition-colors">Logout</button>
                              </form>
-                             <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-default">
-                                 A
+                             <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-default select-none">
+                                 <?php echo e(substr(Auth::user()->name ?? 'G', 0, 1)); ?>
+
                              </div>
                         </div>
                     </div>
@@ -119,7 +128,6 @@
             </div>
         </footer>
     </div>
-    @livewireScripts
 </body>
 </html>
 <?php /**PATH C:\panleee\schnuffelll\panel\resources\views/layouts/app.blade.php ENDPATH**/ ?>

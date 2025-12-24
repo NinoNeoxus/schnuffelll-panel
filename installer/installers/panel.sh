@@ -1,17 +1,16 @@
 #!/bin/bash
 
-# Schnuffelll Panel Installer
-# Adapted from Pterodactyl Installer
+# Schnuffelll Panel Installer v3.0
+# @author schnuffelll
 
 set -e
 trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
 trap 'echo "CRITICAL ERROR: \"${last_command}\" command failed with exit code $?."' ERR
 
 # Load Lib
-# Load Lib
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Try to find lib.sh one level up (since this is in installers/)
+
 if [ -f "$SCRIPT_DIR/../lib.sh" ]; then
   source "$SCRIPT_DIR/../lib.sh"
 elif [ -f /tmp/schnuffelll_lib.sh ]; then
@@ -21,33 +20,64 @@ else
   source /tmp/schnuffelll_lib.sh
 fi
 
-# Variables
-FQDN="${FQDN:-localhost}"
+# Variables (can be set via environment)
+FQDN="${FQDN:-}"
 MYSQL_DB="${MYSQL_DB:-panel}"
 MYSQL_USER="${MYSQL_USER:-schnuffelll}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-$(gen_passwd 64)}"
-email="${email:-}"
+USER_EMAIL="${USER_EMAIL:-}"
+SKIP_SSL="${SKIP_SSL:-false}"
+
+# Input validation
+get_user_input() {
+  # Get FQDN
+  while [ -z "$FQDN" ]; do
+    read -p "Enter Domain/FQDN (e.g., panel.example.com): " FQDN
+    if [ -z "$FQDN" ]; then
+      error "FQDN cannot be empty!"
+    fi
+  done
+
+  # Get Email (required for SSL)
+  if [ "$SKIP_SSL" != "true" ]; then
+    while [ -z "$USER_EMAIL" ]; do
+      read -p "Enter Email (for SSL certificate): " USER_EMAIL
+      if ! valid_email "$USER_EMAIL"; then
+        error "Invalid email format!"
+        USER_EMAIL=""
+      fi
+    done
+  else
+    output "Skipping SSL setup (SKIP_SSL=true)"
+    if [ -z "$USER_EMAIL" ]; then
+      USER_EMAIL="admin@localhost"
+    fi
+  fi
+}
 
 # Dependencies
 ubuntu_dep() {
+  output "Adding PHP repository for Ubuntu..."
   install_packages "software-properties-common apt-transport-https ca-certificates gnupg"
-  add-apt-repository universe -y
+  add-apt-repository universe -y 2>/dev/null || true
   LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
 }
 
 debian_dep() {
+  output "Adding PHP repository for Debian..."
   install_packages "dirmngr ca-certificates apt-transport-https lsb-release"
-  curl -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+  curl -sSLo /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 }
 
 alma_rocky_dep() {
+  output "Adding PHP repository for RHEL-based..."
   install_packages "epel-release http://rpms.remirepo.net/enterprise/remi-release-$OS_VER_MAJOR.rpm"
   dnf module enable -y php:remi-8.2
 }
 
 dep_install() {
-  output "Installing dependencies for $OS..."
+  output "Installing dependencies for $OS $OS_VER..."
   update_repos
 
   install_firewall
@@ -58,45 +88,66 @@ dep_install() {
     [ "$OS" == "ubuntu" ] && ubuntu_dep
     [ "$OS" == "debian" ] && debian_dep
     update_repos
-    install_packages "php8.2 php8.2-{cli,common,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} mariadb-common mariadb-server mariadb-client nginx redis-server zip unzip tar git cron"
-    install_packages "certbot python3-certbot-nginx"
+    install_packages "php8.2 php8.2-{cli,common,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} mariadb-common mariadb-server mariadb-client nginx zip unzip tar git cron"
+    # Install Redis
+    install_packages "redis-server" || install_packages "redis"
+    # Install certbot if SSL enabled
+    [ "$SKIP_SSL" != "true" ] && install_packages "certbot python3-certbot-nginx"
     ;;
   rocky | almalinux)
     alma_rocky_dep
-    install_packages "php php-{common,fpm,cli,json,mysqlnd,mcrypt,gd,mbstring,pdo,zip,bcmath,dom,opcache,posix} mariadb mariadb-server nginx redis zip unzip tar git cronie"
-    install_packages "certbot python3-certbot-nginx"
+    install_packages "php php-{common,fpm,cli,json,mysqlnd,mcrypt,gd,mbstring,pdo,zip,bcmath,dom,opcache,posix} mariadb mariadb-server nginx zip unzip tar git cronie"
+    # Install Redis
+    install_packages "redis"
+    # Install certbot if SSL enabled
+    [ "$SKIP_SSL" != "true" ] && install_packages "certbot python3-certbot-nginx"
     ;;
   esac
 
-  systemctl enable nginx mariadb redis-server 2>/dev/null || systemctl enable redis 2>/dev/null
-  systemctl start nginx mariadb redis-server 2>/dev/null || systemctl start redis 2>/dev/null
+  # Enable services - handle different Redis package names
+  systemctl enable nginx mariadb
+  systemctl enable redis-server 2>/dev/null || systemctl enable redis 2>/dev/null || true
+  
+  systemctl start nginx mariadb
+  systemctl start redis-server 2>/dev/null || systemctl start redis 2>/dev/null || true
+  
   success "Dependencies installed!"
 }
 
 install_composer() {
-  output "Installing composer..."
-  curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-  success "Composer installed!"
+  output "Installing Composer..."
+  if [ -x "$(command -v composer)" ]; then
+    output "Composer already installed, updating..."
+    composer self-update 2>/dev/null || true
+  else
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  fi
+  success "Composer ready!"
 }
 
 setup_database() {
   output "Setting up database..."
   
-  # Drop user if exists, then create fresh
-  mysql -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'127.0.0.1';" 2>/dev/null || true
-  mysql -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'localhost';" 2>/dev/null || true
-  mysql -u root -e "DROP DATABASE IF EXISTS $MYSQL_DB;" 2>/dev/null || true
+  # Detect mysql command
+  MYSQL_CMD="mysql"
+  if command -v mariadb &> /dev/null; then
+    MYSQL_CMD="mariadb"
+  fi
+  
+  # Drop existing if any
+  $MYSQL_CMD -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'127.0.0.1';" 2>/dev/null || true
+  $MYSQL_CMD -u root -e "DROP USER IF EXISTS '$MYSQL_USER'@'localhost';" 2>/dev/null || true
+  $MYSQL_CMD -u root -e "DROP DATABASE IF EXISTS $MYSQL_DB;" 2>/dev/null || true
   
   # Create Database & Users
-  mysql -u root -e "CREATE DATABASE $MYSQL_DB;"
-  mysql -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
-  mysql -u root -e "CREATE USER '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  $MYSQL_CMD -u root -e "CREATE DATABASE $MYSQL_DB;"
+  $MYSQL_CMD -u root -e "CREATE USER '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';"
+  $MYSQL_CMD -u root -e "CREATE USER '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_PASSWORD';"
   
   # Grant Privileges
-  mysql -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'127.0.0.1' WITH GRANT OPTION;"
-  mysql -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'localhost' WITH GRANT OPTION;"
-  
-  mysql -u root -e "FLUSH PRIVILEGES;"
+  $MYSQL_CMD -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'127.0.0.1' WITH GRANT OPTION;"
+  $MYSQL_CMD -u root -e "GRANT ALL PRIVILEGES ON $MYSQL_DB.* TO '$MYSQL_USER'@'localhost' WITH GRANT OPTION;"
+  $MYSQL_CMD -u root -e "FLUSH PRIVILEGES;"
   
   success "Database configured!"
 }
@@ -104,66 +155,59 @@ setup_database() {
 setup_app() {
   output "Setting up Schnuffelll Panel..."
   
-  # Directory setup
   mkdir -p /var/www/schnuffelll
   cd /var/www/schnuffelll
   
-  # Clone Repo with robust handling
-  # Clone Repo with robust handling
+  # Clone or update repo
   if [ -d ".git" ]; then
       output "Updating existing repository..."
-      # If we are running locally, we might NOT want to reset hard
-      # However, if we just fetch, we might conflict.
-      # Safest for "preserving local changes" is to do nothing or just fetch.
-      output "Local repository detected. Fetching updates but SKIPPING 'git reset --hard' to preserve your changes."
       git fetch --all
+      git reset --hard origin/master
   else
       output "Cloning repository..."
-      # Clone to temp dir to avoid conflicts
+      rm -rf /tmp/schnuffelll_temp
       git clone https://github.com/NinoNeoxus/schnuffelll-panel.git /tmp/schnuffelll_temp
-      # Copy hidden files and normal files
       cp -r /tmp/schnuffelll_temp/. /var/www/schnuffelll/
       rm -rf /tmp/schnuffelll_temp
   fi
   
-  # Go into panel directory if it exists (repo structure compatibility)
+  # Go into panel directory
   if [ -d "panel" ]; then
       cd panel
   fi
 
-  # Environment setup
+  # Verify installation
   if [ ! -f ".env.example" ]; then
-      error "Installation corrupted: .env.example not found in $(pwd)"
-      # List directory for debugging
+      error "Installation corrupted: .env.example not found!"
       ls -la
       exit 1
   fi
+  
   cp .env.example .env
   
-  # Configure Database in .env
-  # Configure URL (Handled in cat block below)
-  
-  # Dependencies
-
-  # Dependencies
+  # Install dependencies
   output "Installing PHP dependencies..."
-  # Remove lock file to force resolution for PHP 8.2 & remove memory limits
   rm -f composer.lock
   COMPOSER_MEMORY_LIMIT=-1 COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
   
-  # Key Generation
+  # Generate key
   php artisan key:generate --force
-  
-  # Get the APP_KEY that was just generated
   APP_KEY=$(grep "^APP_KEY=" .env | cut -d '=' -f 2)
   
-  # Write .env file directly (Safer than sed)
+  # Determine URL scheme
+  if [ "$SKIP_SSL" == "true" ]; then
+    APP_URL="http://$FQDN"
+  else
+    APP_URL="https://$FQDN"
+  fi
+  
+  # Write .env
   cat > .env <<EOF
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=$APP_KEY
 APP_TIMEZONE=UTC
-APP_URL=https://$FQDN
+APP_URL=$APP_URL
 
 LOG_CHANNEL=daily
 LOG_DEPRECATIONS_CHANNEL=null
@@ -195,22 +239,8 @@ MAIL_PORT=2525
 MAIL_USERNAME=null
 MAIL_PASSWORD=null
 MAIL_ENCRYPTION=null
-MAIL_FROM_ADDRESS=null
+MAIL_FROM_ADDRESS=noreply@$FQDN
 MAIL_FROM_NAME="Schnuffelll"
-
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=
-AWS_USE_PATH_STYLE_ENDPOINT=false
-
-PUSHER_APP_ID=
-PUSHER_APP_KEY=
-PUSHER_APP_SECRET=
-PUSHER_APP_CLUSTER=mt1
-
-MIX_PUSHER_APP_KEY="\${PUSHER_APP_KEY}"
-MIX_PUSHER_APP_CLUSTER="\${PUSHER_APP_CLUSTER}"
 
 HASHIDS_SALT=$(gen_passwd 20)
 HASHIDS_LENGTH=8
@@ -219,8 +249,10 @@ EOF
   output "Running database migrations..."
   php artisan migrate --seed --force
   
-  # Set final permissions
+  # Set permissions
   chown -R www-data:www-data /var/www/schnuffelll
+  chmod -R 755 /var/www/schnuffelll/panel/storage
+  chmod -R 755 /var/www/schnuffelll/panel/bootstrap/cache
   
   success "Panel setup complete!"
 }
@@ -228,10 +260,8 @@ EOF
 setup_nginx() {
   output "Configuring Nginx..."
   
-  # Remove default config
   rm -f /etc/nginx/sites-enabled/default
 
-  # Create Nginx config inline
   cat > /etc/nginx/sites-available/schnuffelll.conf <<EOF
 server {
     listen 80;
@@ -239,7 +269,6 @@ server {
     root /var/www/schnuffelll/panel/public;
 
     index index.php;
-
     charset utf-8;
 
     location / {
@@ -252,14 +281,12 @@ server {
     access_log off;
     error_log  /var/log/nginx/schnuffelll.app-error.log error;
 
-    # Allow larger file uploads
     client_max_body_size 100m;
     client_body_timeout 120s;
-
     sendfile off;
 
-    location ~ \.php$ {
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    location ~ \.php\$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
@@ -280,24 +307,29 @@ server {
 }
 EOF
 
-  # Enable site
   ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/schnuffelll.conf
   
-  # Restart Nginx
+  # Test config before restart
+  nginx -t
   systemctl restart nginx
   
   success "Nginx configured!"
 }
 
 setup_ssl() {
-  output "Configuring SSL..."
-  certbot --nginx -d $FQDN --non-interactive --agree-tos -m $email --redirect
+  if [ "$SKIP_SSL" == "true" ]; then
+    output "Skipping SSL setup..."
+    return
+  fi
+  
+  output "Configuring SSL with Let's Encrypt..."
+  certbot --nginx -d $FQDN --non-interactive --agree-tos -m $USER_EMAIL --redirect
   success "SSL configured!"
 }
 
 setup_cron() {
   output "Setting up cron job..."
-  (crontab -l 2>/dev/null; echo "* * * * * php /var/www/schnuffelll/panel/artisan schedule:run >> /dev/null 2>&1") | crontab -
+  (crontab -l 2>/dev/null | grep -v "schnuffelll"; echo "* * * * * php /var/www/schnuffelll/panel/artisan schedule:run >> /dev/null 2>&1") | crontab -
   success "Cron job configured!"
 }
 
@@ -307,7 +339,7 @@ setup_queue() {
   cat > /etc/systemd/system/schnuffelll.service <<EOF
 [Unit]
 Description=Schnuffelll Queue Worker
-After=redis-server.service
+After=redis-server.service redis.service
 
 [Service]
 User=www-data
@@ -322,16 +354,20 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
 
+  systemctl daemon-reload
   systemctl enable schnuffelll
   systemctl start schnuffelll
   
   success "Queue worker configured!"
 }
 
-# Execution Flow
-output "Schnuffelll Panel Installation"
-read -p "Input Domain (FQDN): " FQDN
-read -p "Input Email: " email
+# ==================== MAIN ====================
+
+output "╔════════════════════════════════════════╗"
+output "║     SCHNUFFELLL PANEL INSTALLATION     ║"
+output "╚════════════════════════════════════════╝"
+
+get_user_input
 
 dep_install
 install_composer
@@ -343,9 +379,16 @@ setup_cron
 setup_queue
 
 echo ""
-success "============================================"
+print_brake 50
 success "Installation Complete!"
-success "============================================"
-success "Panel URL: https://$FQDN"
-success "Default Login: admin@schnuffelll.com / password"
-success "============================================"
+print_brake 50
+echo ""
+if [ "$SKIP_SSL" == "true" ]; then
+  output "Panel URL: http://$FQDN"
+else
+  output "Panel URL: https://$FQDN"
+fi
+output "Default Login: admin@schnuffelll.com / password"
+output ""
+warning "CHANGE YOUR PASSWORD IMMEDIATELY!"
+print_brake 50

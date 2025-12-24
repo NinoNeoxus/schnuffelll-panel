@@ -15,7 +15,7 @@ class ServerController extends Controller
 {
     public function index()
     {
-        $servers = Server::with(['node', 'egg'])->paginate(15);
+        $servers = Server::with(['node', 'egg', 'owner', 'allocation'])->paginate(15);
         return view('admin.servers.index', compact('servers'));
     }
 
@@ -129,5 +129,67 @@ class ServerController extends Controller
             // Log error but don't fail the request user-side
             logger()->error('Failed to notify Wings: ' . $e->getMessage());
         }
+    }
+
+    public function show(Server $server)
+    {
+        $server->load(['node', 'egg', 'owner', 'allocation', 'allocations']);
+        return view('admin.servers.show', compact('server'));
+    }
+
+    public function edit(Server $server)
+    {
+        $nodes = Node::all();
+        $eggs = Egg::all();
+        $server->load(['node', 'egg', 'owner']);
+        return view('admin.servers.edit', compact('server', 'nodes', 'eggs'));
+    }
+
+    public function update(Request $request, Server $server)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:191',
+            'owner_id' => 'required|exists:users,id',
+            'memory' => 'required|integer',
+            'swap' => 'required|integer',
+            'disk' => 'required|integer',
+            'cpu' => 'required|integer',
+        ]);
+
+        $server->update($validated);
+
+        // Notify Wings of the update
+        $this->notifyWings($server);
+
+        return redirect()->route('admin.servers.index')
+            ->with('success', 'Server updated successfully!');
+    }
+
+    public function destroy(Server $server)
+    {
+        // Notify Wings to delete the server
+        try {
+            $node = $server->node;
+            $url = sprintf(
+                '%s://%s:%d/api/servers/%s',
+                $node->scheme,
+                $node->fqdn,
+                $node->daemon_listen,
+                $server->uuid
+            );
+            Http::withToken($node->daemon_token)->delete($url);
+        } catch (\Exception $e) {
+            logger()->error('Failed to notify Wings for deletion: ' . $e->getMessage());
+        }
+
+        // Release allocation
+        if ($server->allocation) {
+            $server->allocation->update(['server_id' => null]);
+        }
+
+        $server->delete();
+
+        return redirect()->route('admin.servers.index')
+            ->with('success', 'Server deleted successfully!');
     }
 }

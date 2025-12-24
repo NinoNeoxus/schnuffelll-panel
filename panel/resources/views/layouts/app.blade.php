@@ -58,7 +58,6 @@
     </style>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    @livewireStyles
 </head>
 <body class="h-full font-sans antialiased text-slate-300 selection:bg-blue-500 selection:text-white">
     <div class="min-h-full flex flex-col">
@@ -128,6 +127,5 @@
             </div>
         </footer>
     </div>
-    @livewireScripts
 </body>
 </html>
