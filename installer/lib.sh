@@ -206,10 +206,21 @@ OS=$(echo "$OS" | awk '{print tolower($0)}')
 OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
 CPU_ARCHITECTURE=$(uname -m)
 
-# Simple support check
+# Strict support check
 case "$OS" in
-ubuntu | debian | rocky | almalinux)
-  SUPPORTED=true
+ubuntu)
+  [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
+  ;;
+debian)
+  [ "$OS_VER_MAJOR" == "10" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
+  ;;
+rocky | almalinux)
+  [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
   ;;
 *)
   SUPPORTED=false
