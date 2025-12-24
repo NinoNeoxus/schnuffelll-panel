@@ -132,14 +132,9 @@ setup_app() {
   cp .env.example .env
   
   # Configure Database in .env
-  sed -i "s/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/g" .env
-  sed -i "s/DB_PORT=3306/DB_PORT=3306/g" .env
-  sed -i "s/DB_DATABASE=laravel/DB_DATABASE=$MYSQL_DB/g" .env
-  sed -i "s/DB_USERNAME=root/DB_USERNAME=$MYSQL_USER/g" .env
-  sed -i "s/DB_PASSWORD=/DB_PASSWORD=$MYSQL_PASSWORD/g" .env
+  # Configure URL (Handled in cat block below)
   
-  # Configure URL
-  sed -i "s|APP_URL=http://localhost|APP_URL=https://$FQDN|g" .env
+  # Dependencies
 
   # Dependencies
   output "Installing PHP dependencies..."

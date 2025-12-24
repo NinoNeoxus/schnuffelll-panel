@@ -86,11 +86,11 @@ uninstall() {
 }
 
 install_panel() {
-    run_remote_script "installer/installers/panel.sh?v=DB_FIX_$(date +%s)"
+    run_remote_script "installer/installers/panel.sh?v=SED_FIX_$(date +%s)"
 }
 
 install_wings() {
-    run_remote_script "installer/installers/wings.sh?v=DB_FIX_$(date +%s)"
+    run_remote_script "installer/installers/wings.sh?v=SED_FIX_$(date +%s)"
 }
 
 menu() {
