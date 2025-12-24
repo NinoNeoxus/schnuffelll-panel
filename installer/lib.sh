@@ -176,58 +176,64 @@ firewall_allow_ports() {
 
 # ---------------- System checks --------------- #
 
-# Exit with error status code if user is not root
-if [[ $EUID -ne 0 ]]; then
-  error "This script must be executed with root privileges."
-  exit 1
-fi
+if [[ "$SKIP_CHECKS" != "true" ]]; then
+  # Exit with error status code if user is not root
+  if [[ $EUID -ne 0 ]]; then
+    error "This script must be executed with root privileges."
+    exit 1
+  fi
 
-# Detect OS
-if [ -f /etc/os-release ]; then
-  . /etc/os-release
-  OS=$(echo "$ID" | awk '{print tolower($0)}')
-  OS_VER=$VERSION_ID
-elif type lsb_release >/dev/null 2>&1; then
-  OS=$(lsb_release -si | awk '{print tolower($0)}')
-  OS_VER=$(lsb_release -sr)
-elif [ -f /etc/lsb-release ]; then
-  . /etc/lsb-release
-  OS=$(echo "$DISTRIB_ID" | awk '{print tolower($0)}')
-  OS_VER=$DISTRIB_RELEASE
-elif [ -f /etc/debian_version ]; then
-  OS="debian"
-  OS_VER=$(cat /etc/debian_version)
+  # Detect OS
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$(echo "$ID" | awk '{print tolower($0)}')
+    OS_VER=$VERSION_ID
+  elif type lsb_release >/dev/null 2>&1; then
+    OS=$(lsb_release -si | awk '{print tolower($0)}')
+    OS_VER=$(lsb_release -sr)
+  elif [ -f /etc/lsb-release ]; then
+    . /etc/lsb-release
+    OS=$(echo "$DISTRIB_ID" | awk '{print tolower($0)}')
+    OS_VER=$DISTRIB_RELEASE
+  elif [ -f /etc/debian_version ]; then
+    OS="debian"
+    OS_VER=$(cat /etc/debian_version)
+  else
+    OS=$(uname -s)
+    OS_VER=$(uname -r)
+  fi
+
+  OS=$(echo "$OS" | awk '{print tolower($0)}')
+  OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
+  CPU_ARCHITECTURE=$(uname -m)
+
+  # Strict support check
+  case "$OS" in
+  ubuntu)
+    [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
+    [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
+    [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
+    ;;
+  debian)
+    [ "$OS_VER_MAJOR" == "10" ] && SUPPORTED=true
+    [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
+    [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
+    ;;
+  rocky | almalinux)
+    [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
+    [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
+    ;;
+  *)
+    SUPPORTED=false
+    ;;
+  esac
+
+  if [ "$SUPPORTED" == false ]; then
+    error "$OS is not supported"
+    exit 1
+  fi
 else
-  OS=$(uname -s)
-  OS_VER=$(uname -r)
-fi
-
-OS=$(echo "$OS" | awk '{print tolower($0)}')
-OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
-CPU_ARCHITECTURE=$(uname -m)
-
-# Strict support check
-case "$OS" in
-ubuntu)
-  [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
-  ;;
-debian)
-  [ "$OS_VER_MAJOR" == "10" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
-  ;;
-rocky | almalinux)
-  [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
-  ;;
-*)
-  SUPPORTED=false
-  ;;
-esac
-
-if [ "$SUPPORTED" == false ]; then
-  error "$OS is not supported"
-  exit 1
+    output "WARNING: System checks bypassed (SKIP_CHECKS=true)"
+    OS="linux"
+    OS_VER="mock"
 fi

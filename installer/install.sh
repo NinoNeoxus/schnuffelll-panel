@@ -10,8 +10,8 @@ GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ -f "$SCRIPT_DIR/lib.sh" ]; then
-  source "$SCRIPT_DIR/lib.sh"
   LOCAL_INSTALL=true
+  source "$SCRIPT_DIR/lib.sh"
 else
   # Download Lib (always fresh)
   rm -f /tmp/schnuffelll_lib.sh
