@@ -6,8 +6,13 @@
 set -e
 
 # Load Lib
+# Load Lib
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
-if [ -f /tmp/schnuffelll_lib.sh ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f "$SCRIPT_DIR/../lib.sh" ]; then
+  source "$SCRIPT_DIR/../lib.sh"
+elif [ -f /tmp/schnuffelll_lib.sh ]; then
   source /tmp/schnuffelll_lib.sh
 else
   curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"

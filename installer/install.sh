@@ -6,10 +6,19 @@ set -e
 
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
 
-# Download Lib (always fresh)
-rm -f /tmp/schnuffelll_lib.sh
-curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
-source /tmp/schnuffelll_lib.sh
+# Check if running locally (relative to script location)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f "$SCRIPT_DIR/lib.sh" ]; then
+  source "$SCRIPT_DIR/lib.sh"
+  LOCAL_INSTALL=true
+else
+  # Download Lib (always fresh)
+  rm -f /tmp/schnuffelll_lib.sh
+  curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
+  source /tmp/schnuffelll_lib.sh
+  LOCAL_INSTALL=false
+fi
 
 welcome() {
   clear
@@ -24,11 +33,31 @@ welcome() {
   "
   output "Schnuffelll Installer - Remote Edition"
   output "OS: $OS $OS_VER"
+  if [ "$LOCAL_INSTALL" == "true" ]; then
+      output "Mode: LOCAL INSTALLATION"
+  fi
   echo ""
 }
 
 run_remote_script() {
     local script_path=$1
+    local local_file="$SCRIPT_DIR/$(basename "$script_path" | cut -d? -f1)" # Remove query params
+    
+    # Check if we verify local file exists in specific installers dir too
+    if [ "$LOCAL_INSTALL" == "true" ]; then
+        # Try finding it in installers subdir if not in root of installer dir
+        if [ ! -f "$local_file" ]; then
+             local_file="$SCRIPT_DIR/installers/$(basename "$script_path" | cut -d? -f1)"
+        fi
+
+        if [ -f "$local_file" ]; then
+            output "Executing local script: $local_file"
+            # Pass environment variables to child scripts if needed
+            bash "$local_file"
+            return
+        fi
+    fi
+
     local temp_file="/tmp/schnuff_inst_$(basename "$script_path")"
     local url="$GITHUB_BASE_URL/$script_path"
 

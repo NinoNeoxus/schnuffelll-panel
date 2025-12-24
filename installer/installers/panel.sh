@@ -8,8 +8,13 @@ trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
 trap 'echo "CRITICAL ERROR: \"${last_command}\" command failed with exit code $?."' ERR
 
 # Load Lib
+# Load Lib
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
-if [ -f /tmp/schnuffelll_lib.sh ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Try to find lib.sh one level up (since this is in installers/)
+if [ -f "$SCRIPT_DIR/../lib.sh" ]; then
+  source "$SCRIPT_DIR/../lib.sh"
+elif [ -f /tmp/schnuffelll_lib.sh ]; then
   source /tmp/schnuffelll_lib.sh
 else
   curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
@@ -104,10 +109,14 @@ setup_app() {
   cd /var/www/schnuffelll
   
   # Clone Repo with robust handling
+  # Clone Repo with robust handling
   if [ -d ".git" ]; then
       output "Updating existing repository..."
+      # If we are running locally, we might NOT want to reset hard
+      # However, if we just fetch, we might conflict.
+      # Safest for "preserving local changes" is to do nothing or just fetch.
+      output "Local repository detected. Fetching updates but SKIPPING 'git reset --hard' to preserve your changes."
       git fetch --all
-      git reset --hard origin/master
   else
       output "Cloning repository..."
       # Clone to temp dir to avoid conflicts
