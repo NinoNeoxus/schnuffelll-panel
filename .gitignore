@@ -1,0 +1,39 @@
+# System files
+.DS_Store
+Thumbs.db
+*.exe
+*.dll
+
+# Dependencies
+node_modules/
+vendor/
+analysis/
+
+# Environment and Config
+.env
+.env.backup
+.pytest_cache
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Build
+dist/
+build/
+bin/
+wings.exe
+wings
+
+# Laravel specific
+/panel/vendor
+/panel/node_modules
+/panel/public/storage
+/panel/storage/*.key
+/panel/.env*
+!/panel/.env.example
+
+# Go specific
+/wings/wings
+/wings/config.json
