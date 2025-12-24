@@ -6,10 +6,9 @@ set -e
 
 GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
 
-# Download Lib
-if [ ! -f /tmp/schnuffelll_lib.sh ]; then
-    curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
-fi
+# Download Lib (always fresh)
+rm -f /tmp/schnuffelll_lib.sh
+curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
 source /tmp/schnuffelll_lib.sh
 
 welcome() {
