@@ -1,8 +1,13 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\NodeController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NodeController;
+use App\Http\Controllers\ServerController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -11,27 +16,32 @@ use App\Http\Controllers\AuthController;
 */
 
 // Authentication Routes
-Route::get('/', [AuthController::class, 'login'])->name('login'); // Named 'login' for Auth middleware
+Route::get('/', [AuthController::class, 'login'])->name('login');
 Route::get('/login', [AuthController::class, 'login']);
 Route::post('/login', [AuthController::class, 'authenticate'])->name('authenticate');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Node Management
-    Route::prefix('admin/nodes')->name('admin.nodes.')->group(function () {
-        Route::get('/', [NodeController::class, 'index'])->name('index');
-        Route::get('/create', [NodeController::class, 'create'])->name('create');
-        Route::post('/', [NodeController::class, 'store'])->name('store');
-    });
-
-    // Settings
-    Route::prefix('admin/settings')->name('admin.settings.')->group(function () {
-        Route::get('/', [App\Http\Controllers\SettingsController::class, 'index'])->name('index');
-        Route::post('/update', [App\Http\Controllers\SettingsController::class, 'update'])->name('update');
+    // Admin Routes
+    Route::prefix('admin')->name('admin.')->group(function () {
+        // Servers
+        Route::resource('servers', ServerController::class);
+        
+        // Nodes
+        Route::resource('nodes', NodeController::class);
+        
+        // Users
+        Route::resource('users', UserController::class);
+        
+        // Locations
+        Route::resource('locations', LocationController::class);
+        
+        // Settings
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::post('/settings/update', [SettingsController::class, 'update'])->name('settings.update');
     });
 });
