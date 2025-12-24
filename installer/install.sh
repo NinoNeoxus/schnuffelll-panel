@@ -28,6 +28,28 @@ welcome() {
   echo ""
 }
 
+run_remote_script() {
+    local script_path=$1
+    local temp_file="/tmp/schnuff_inst_$(basename "$script_path")"
+    local url="$GITHUB_BASE_URL/$script_path"
+
+    echo "Fetching script: $url"
+    
+    curl -sSL -o "$temp_file" "$url"
+    
+    if grep -q "^404: Not Found" "$temp_file" || grep -q "^Not Found" "$temp_file"; then
+        echo "CRITICAL ERROR: Could not fetch script!"
+        echo "URL: $url"
+        echo "Response: $(cat "$temp_file")"
+        rm -f "$temp_file"
+        exit 1
+    fi
+
+    # Execute
+    bash "$temp_file"
+    rm -f "$temp_file"
+}
+
 menu() {
   echo "Select an installation:"
   echo "[0] Install Panel"
@@ -38,14 +60,14 @@ menu() {
   
   case $action in
     0)
-      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/panel.sh")
+      run_remote_script "installer/installers/panel.sh"
       ;;
     1)
-      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/wings.sh")
+      run_remote_script "installer/installers/wings.sh"
       ;;
     2)
-      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/panel.sh")
-      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/wings.sh")
+      run_remote_script "installer/installers/panel.sh"
+      run_remote_script "installer/installers/wings.sh"
       ;;
     *)
       error "Invalid option"
