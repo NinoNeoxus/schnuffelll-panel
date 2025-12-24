@@ -1,11 +1,16 @@
 #!/bin/bash
 
-# Schnuffelll Magic Installer (v2.0 - Pterodactyl Style)
+# Schnuffelll Magic Installer (v2.1 - Remote Fixed)
 
 set -e
 
-# Load Lib
-source $(dirname "$0")/lib/lib.sh
+GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
+
+# Download Lib
+if [ ! -f /tmp/schnuffelll_lib.sh ]; then
+    curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
+fi
+source /tmp/schnuffelll_lib.sh
 
 welcome() {
   clear
@@ -18,7 +23,7 @@ welcome() {
  |_____/ \___|_| |_|_| |_|\__,_|\__,_|_| |_|  \___|_|_|
                                                        
   "
-  output "Schnuffelll Installer - Inspired by Pterodactyl"
+  output "Schnuffelll Installer - Remote Edition"
   output "OS: $OS $OS_VER"
   echo ""
 }
@@ -33,14 +38,14 @@ menu() {
   
   case $action in
     0)
-      bash $(dirname "$0")/installers/panel.sh
+      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/panel.sh")
       ;;
     1)
-      bash $(dirname "$0")/installers/wings.sh
+      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/wings.sh")
       ;;
     2)
-      bash $(dirname "$0")/installers/panel.sh
-      bash $(dirname "$0")/installers/wings.sh
+      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/panel.sh")
+      bash <(curl -sSL "$GITHUB_BASE_URL/installer/installers/wings.sh")
       ;;
     *)
       error "Invalid option"

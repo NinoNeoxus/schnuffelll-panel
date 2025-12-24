@@ -6,7 +6,13 @@
 set -e
 
 # Load Lib
-source $(dirname "$0")/../lib.sh
+GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
+if [ -f /tmp/schnuffelll_lib.sh ]; then
+  source /tmp/schnuffelll_lib.sh
+else
+  curl -sSL -o /tmp/schnuffelll_lib.sh "$GITHUB_BASE_URL/installer/lib.sh"
+  source /tmp/schnuffelll_lib.sh
+fi
 
 install_docker() {
   output "Installing Docker..."
