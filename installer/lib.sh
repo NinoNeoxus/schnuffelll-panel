@@ -7,7 +7,7 @@ set -e
 
 # ------------------ Variables ----------------- #
 
-export GITHUB_BASE_URL="https://github.com/schnuffelll"
+export GITHUB_BASE_URL="https://raw.githubusercontent.com/NinoNeoxus/schnuffelll-panel/master"
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
 # Colors
