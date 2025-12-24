@@ -1,0 +1,70 @@
+{
+    "meta": {
+        "version": "SCHNUFFELLL_EGG_V1",
+        "update_url": null
+    },
+    "exported_at": "2025-12-24T15:00:00+00:00",
+    "name": "Minecraft Java Edition",
+    "author": "schnuffelll@example.com",
+    "description": "Minecraft Java Edition server with Paper/Spigot support.",
+    "features": [
+        "eula",
+        "java_version",
+        "pid_limit"
+    ],
+    "docker_images": {
+        "Java 21": "ghcr.io/pterodactyl/yolks:java_21",
+        "Java 17": "ghcr.io/pterodactyl/yolks:java_17",
+        "Java 11": "ghcr.io/pterodactyl/yolks:java_11",
+        "Java 8": "ghcr.io/pterodactyl/yolks:java_8"
+    },
+    "file_denylist": [],
+    "startup": "java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}",
+    "config": {
+        "files": {
+            "server.properties": {
+                "parser": "properties",
+                "find": {
+                    "server-ip": "0.0.0.0",
+                    "server-port": "{{server.build.default.port}}",
+                    "query.port": "{{server.build.default.port}}"
+                }
+            }
+        },
+        "startup": {
+            "done": ")! For help, type "
+        },
+        "logs": {
+            "custom": false,
+            "location": "logs/latest.log"
+        },
+        "stop": "stop"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\ncd /mnt/server\ncurl -o server.jar https://api.papermc.io/v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar\necho 'eula=true' > eula.txt",
+            "container": "ghcr.io/pterodactyl/installers:alpine",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Server Jar File",
+            "description": "The name of the server jarfile to run the server with.",
+            "env_variable": "SERVER_JARFILE",
+            "default_value": "server.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|regex:/^([\\w\\d._-]+)(\\.jar)$/"
+        },
+        {
+            "name": "Server Memory",
+            "description": "The amount of memory to allocate to the server.",
+            "env_variable": "SERVER_MEMORY",
+            "default_value": "1024",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|integer|min:128"
+        }
+    ]
+}

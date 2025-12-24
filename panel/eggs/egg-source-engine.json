@@ -1,0 +1,74 @@
+{
+    "meta": {
+        "version": "SCHNUFFELLL_EGG_V1",
+        "update_url": null
+    },
+    "exported_at": "2025-12-24T15:00:00+00:00",
+    "name": "Generic Source Engine",
+    "author": "schnuffelll@example.com",
+    "description": "Generic Source Engine server (CS:GO, TF2, GMod, etc.)",
+    "features": [
+        "steam_disk_space"
+    ],
+    "docker_images": {
+        "Source": "ghcr.io/pterodactyl/games:source"
+    },
+    "file_denylist": [],
+    "startup": "./srcds_run -game {{SRCDS_GAME}} -console -port {{SERVER_PORT}} +ip 0.0.0.0 +map {{SRCDS_MAP}} -maxplayers {{MAX_PLAYERS}}",
+    "config": {
+        "files": {},
+        "startup": {
+            "done": "VAC secure mode"
+        },
+        "logs": {
+            "custom": false,
+            "location": "logs/latest.log"
+        },
+        "stop": "quit"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\ncd /mnt/server\n./steamcmd.sh +login anonymous +force_install_dir /mnt/server +app_update {{STEAM_APPID}} +quit",
+            "container": "ghcr.io/pterodactyl/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Game",
+            "description": "The shortname of the game to run (cstrike, tf, garrysmod, etc.)",
+            "env_variable": "SRCDS_GAME",
+            "default_value": "cstrike",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|string|max:20"
+        },
+        {
+            "name": "Default Map",
+            "description": "The default map to start the server with.",
+            "env_variable": "SRCDS_MAP",
+            "default_value": "de_dust2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:50"
+        },
+        {
+            "name": "Steam App ID",
+            "description": "The Steam App ID for installation.",
+            "env_variable": "STEAM_APPID",
+            "default_value": "740",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|integer"
+        },
+        {
+            "name": "Max Players",
+            "description": "Maximum number of players.",
+            "env_variable": "MAX_PLAYERS",
+            "default_value": "24",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|min:2|max:64"
+        }
+    ]
+}

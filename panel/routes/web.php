@@ -8,6 +8,8 @@ use App\Http\Controllers\ServerController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\EggController;
+use App\Http\Controllers\BackupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,8 +42,19 @@ Route::middleware(['auth'])->group(function () {
         // Locations
         Route::resource('locations', LocationController::class);
         
+        // Eggs
+        Route::resource('eggs', EggController::class);
+        Route::post('/eggs/import', [EggController::class, 'import'])->name('eggs.import');
+        Route::get('/eggs/{egg}/export', [EggController::class, 'export'])->name('eggs.export');
+        
+        // Backups
+        Route::resource('backups', BackupController::class)->only(['index', 'store', 'destroy']);
+        Route::post('/backups/{backup}/restore', [BackupController::class, 'restore'])->name('backups.restore');
+        Route::get('/backups/{backup}/download', [BackupController::class, 'download'])->name('backups.download');
+        
         // Settings
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::post('/settings/update', [SettingsController::class, 'update'])->name('settings.update');
     });
 });
+
