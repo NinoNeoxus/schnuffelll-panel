@@ -7,18 +7,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Add new fields to users and nodes tables for Pterodactyl parity.
+     * Add new fields to nodes table for Pterodactyl parity.
+     * Note: User fields are now in create_users_table migration.
      */
     public function up(): void
     {
-        // Add new user fields
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('username')->nullable()->after('name');
-            $table->string('name_first')->nullable()->after('username');
-            $table->string('name_last')->nullable()->after('name_first');
-            $table->string('external_id')->nullable()->unique()->after('id');
-        });
-
         // Add new node fields
         Schema::table('nodes', function (Blueprint $table) {
             $table->char('uuid', 36)->unique()->nullable()->after('id');
@@ -30,10 +23,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['username', 'name_first', 'name_last', 'external_id']);
-        });
-
         Schema::table('nodes', function (Blueprint $table) {
             $table->dropColumn(['uuid', 'description', 'daemon_base', 'upload_size']);
         });
