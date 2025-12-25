@@ -14,7 +14,9 @@ class DatabaseSeeder extends Seeder
         // Check if admin exists
         if (!User::where('email', 'admin@schnuffelll.com')->exists()) {
             User::create([
-                'name' => 'Schnuffelll Admin',
+                'username' => 'admin',
+                'name_first' => 'Schnuffelll',
+                'name_last' => 'Admin',
                 'email' => 'admin@schnuffelll.com',
                 'password' => Hash::make('password'),
                 'root_admin' => true,
@@ -23,3 +25,4 @@ class DatabaseSeeder extends Seeder
         }
     }
 }
+
