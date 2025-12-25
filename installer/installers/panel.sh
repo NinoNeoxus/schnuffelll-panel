@@ -96,12 +96,32 @@ setup_app() {
   mkdir -p /var/www/schnuffelll
   cd /var/www/schnuffelll
   
-  # Clone Repo (if directory is empty)
-  if [ -z "$(ls -A /var/www/schnuffelll)" ]; then
-      git clone https://github.com/NinoNeoxus/schnuffelll-panel.git .
+  # Clone Repo with robust handling
+  if [ -d ".git" ]; then
+      output "Updating existing repository..."
+      git fetch --all
+      git reset --hard origin/master
+  else
+      output "Cloning repository..."
+      # Clone to temp dir to avoid conflicts
+      git clone https://github.com/NinoNeoxus/schnuffelll-panel.git /tmp/schnuffelll_temp
+      # Copy hidden files and normal files
+      cp -r /tmp/schnuffelll_temp/. /var/www/schnuffelll/
+      rm -rf /tmp/schnuffelll_temp
+  fi
+  
+  # Go into panel directory if it exists (repo structure compatibility)
+  if [ -d "panel" ]; then
+      cd panel
   fi
 
   # Environment setup
+  if [ ! -f ".env.example" ]; then
+      error "Installation corrupted: .env.example not found in $(pwd)"
+      # List directory for debugging
+      ls -la
+      exit 1
+  fi
   cp .env.example .env
   
   # Configure Database in .env
