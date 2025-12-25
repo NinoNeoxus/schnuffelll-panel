@@ -10,13 +10,21 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('external_id')->nullable()->unique();
+            $table->string('uuid')->unique();
+            $table->string('username')->unique();
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('name_first');
+            $table->string('name_last');
+            $table->string('name')->nullable();
             $table->string('password');
+            $table->string('language')->default('en');
             $table->boolean('root_admin')->default(false);
             $table->boolean('use_totp')->default(false);
             $table->text('totp_secret')->nullable();
+            $table->timestamp('totp_authenticated_at')->nullable();
+            $table->timestamp('gravatar')->nullable();
+            $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
