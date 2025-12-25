@@ -161,7 +161,7 @@ install_composer_deps() {
         cp "$PANEL_DIR/.env.example" "$PANEL_DIR/.env"
     fi
 
-    COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+    COMPOSER_ALLOW_SUPERUSER=1 composer update --no-dev --optimize-autoloader --no-interaction
 
     success "Dependencies installed"
 }
