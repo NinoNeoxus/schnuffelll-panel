@@ -32,10 +32,13 @@ install_wings() {
   # OR we build it now if Go is installed.
   
   if ! [ -x "$(command -v go)" ]; then
-    warning "Go not found. Creating placeholder or expecting binary."
+    output "Downloading Wings binary..."
+    curl -L -o /usr/local/bin/wings "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64"
+    chmod +x /usr/local/bin/wings
   else
     output "Building Wings from source..."
     # Logic to build would go here
+    go build -o /usr/local/bin/wings
   fi
 
   # Create systemd service

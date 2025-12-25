@@ -92,42 +92,96 @@ setup_database() {
 setup_app() {
   output "Setting up Schnuffelll Panel..."
   
-  # Download panel source code from GitHub
-  output "Downloading panel source code..."
-  cd /var/www
-  rm -rf schnuffelll
-  git clone https://github.com/NinoNeoxus/schnuffelll-panel.git schnuffelll
+  # Directory setup
+  mkdir -p /var/www/schnuffelll
+  cd /var/www/schnuffelll
   
-  cd /var/www/schnuffelll/panel
-  
-  # Check if .env.example exists
-  if [ ! -f .env.example ]; then
-    error "Panel source code not found or incomplete!"
-    exit 1
+  # Clone Repo (if directory is empty)
+  if [ -z "$(ls -A /var/www/schnuffelll)" ]; then
+      git clone https://github.com/NinoNeoxus/schnuffelll-panel.git .
   fi
-  
+
+  # Environment setup
   cp .env.example .env
   
-  # Set permissions EARLY to ensure artisan doesn't fail on cache
-  chmod -R 755 storage bootstrap/cache
-  chown -R www-data:www-data storage bootstrap/cache
+  # Configure Database in .env
+  sed -i "s/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/g" .env
+  sed -i "s/DB_PORT=3306/DB_PORT=3306/g" .env
+  sed -i "s/DB_DATABASE=laravel/DB_DATABASE=$MYSQL_DB/g" .env
+  sed -i "s/DB_USERNAME=root/DB_USERNAME=$MYSQL_USER/g" .env
+  sed -i "s/DB_PASSWORD=/DB_PASSWORD=$MYSQL_PASSWORD/g" .env
   
+  # Configure URL
+  sed -i "s|APP_URL=http://localhost|APP_URL=https://$FQDN|g" .env
+
+  # Dependencies
   output "Installing PHP dependencies..."
-  # Remove lock file to force resolution for PHP 8.2 & remove memory limits
-  rm -f composer.lock
-  COMPOSER_MEMORY_LIMIT=-1 COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+  composer install --no-dev --optimize-autoloader
   
-  output "Configuring application..."
+  # Key Generation
   php artisan key:generate --force
   
-  # Write database config directly to .env
-  sed -i "s|DB_CONNECTION=.*|DB_CONNECTION=mysql|g" .env
-  sed -i "s|DB_HOST=.*|DB_HOST=127.0.0.1|g" .env
-  sed -i "s|DB_PORT=.*|DB_PORT=3306|g" .env
-  sed -i "s|DB_DATABASE=.*|DB_DATABASE=$MYSQL_DB|g" .env
-  sed -i "s|DB_USERNAME=.*|DB_USERNAME=$MYSQL_USER|g" .env
-  sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$MYSQL_PASSWORD|g" .env
-  sed -i "s|APP_URL=.*|APP_URL=https://$FQDN|g" .env
+  # Get the APP_KEY that was just generated
+  APP_KEY=$(grep "^APP_KEY=" .env | cut -d '=' -f 2)
+  
+  # Write .env file directly (Safer than sed)
+  cat > .env <<EOF
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=$APP_KEY
+APP_TIMEZONE=UTC
+APP_URL=https://$FQDN
+
+LOG_CHANNEL=daily
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=$MYSQL_DB
+DB_USERNAME=$MYSQL_USER
+DB_PASSWORD=$MYSQL_PASSWORD
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=redis
+FILESYSTEM_DRIVER=local
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=null
+MAIL_FROM_NAME="Schnuffelll"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+PUSHER_APP_ID=
+PUSHER_APP_KEY=
+PUSHER_APP_SECRET=
+PUSHER_APP_CLUSTER=mt1
+
+MIX_PUSHER_APP_KEY="\${PUSHER_APP_KEY}"
+MIX_PUSHER_APP_CLUSTER="\${PUSHER_APP_CLUSTER}"
+
+HASHIDS_SALT=$(gen_passwd 20)
+HASHIDS_LENGTH=8
+EOF
   
   output "Running database migrations..."
   php artisan migrate --seed --force

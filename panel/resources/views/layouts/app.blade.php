@@ -69,29 +69,38 @@
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
                             <!-- Logo placeholder -->
-                            <h1 class="text-2xl font-bold tracking-tight text-white">
-                                <span class="text-blue-500">Schnuffe</span>lll
-                            </h1>
+                            <a href="{{ route('dashboard') }}">
+                                <h1 class="text-2xl font-bold tracking-tight text-white">
+                                    <span class="text-blue-500">Schnuffe</span>lll
+                                </h1>
+                            </a>
                         </div>
                         <div class="hidden md:block">
                             <div class="ml-10 flex items-baseline space-x-4">
-                                <a href="#" class="bg-slate-800 text-white px-3 py-2 rounded-md text-sm font-medium" aria-current="page">Dashboard</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Servers</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Nodes</a>
-                                <a href="#" class="text-slate-300 hover:bg-slate-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Settings</a>
+                                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                                
+                                <a href="{{ route('admin.servers.index') }}" class="{{ request()->routeIs('admin.servers.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Servers</a>
+                                
+                                <a href="{{ route('admin.nodes.index') }}" class="{{ request()->routeIs('admin.nodes.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Nodes</a>
+                                
+                                <a href="{{ route('admin.locations.index') }}" class="{{ request()->routeIs('admin.locations.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Locations</a>
+
+                                <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Users</a>
+                                
+                                <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} px-3 py-2 rounded-md text-sm font-medium">Settings</a>
                             </div>
                         </div>
                     </div>
                     <!-- User Menu -->
                     <div class="hidden md:block">
                         <div class="ml-4 flex items-center md:ml-6 space-x-4">
-                             <div class="text-sm text-slate-400">Administrator</div>
+                             <div class="text-sm text-slate-400">{{ Auth::user()->name ?? 'Guest' }}</div>
                              <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="text-slate-400 hover:text-white text-sm font-medium transition-colors">Logout</button>
                              </form>
-                             <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-default">
-                                 A
+                             <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-default select-none">
+                                 {{ substr(Auth::user()->name ?? 'G', 0, 1) }}
                              </div>
                         </div>
                     </div>
