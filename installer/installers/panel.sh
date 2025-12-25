@@ -195,40 +195,12 @@ EOF
 setup_nginx() {
   output "Configuring Nginx..."
   
-  # Create Nginx config for panel
-  cat > /etc/nginx/sites-available/schnuffelll.conf <<EOF
-server {
-    listen 80;
-    server_name $FQDN;
-    root /var/www/schnuffelll/panel/public;
+  # Download Nginx config
+  curl -sSL -o /etc/nginx/sites-available/schnuffelll.conf "$GITHUB_BASE_URL/installer/schnuffelll.conf"
+  sed -i "s|<domain>|$FQDN|g" /etc/nginx/sites-available/schnuffelll.conf
 
-    index index.php;
-
-    charset utf-8;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location = /favicon.ico { access_log off; log_not_found off; }
-    location = /robots.txt  { access_log off; log_not_found off; }
-
-    error_page 404 /index.php;
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-}
-EOF
-
-  # Enable site
-  ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/
+  # Enable site and remove default
+  ln -sf /etc/nginx/sites-available/schnuffelll.conf /etc/nginx/sites-enabled/schnuffelll.conf
   rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
   
   # Test and reload
@@ -239,7 +211,7 @@ EOF
 }
 
 setup_ssl() {
-  output "Setting up SSL with Let's Encrypt..."
+  output "Configuring SSL..."
   certbot --nginx -d $FQDN --non-interactive --agree-tos -m $email --redirect
   success "SSL configured!"
 }
