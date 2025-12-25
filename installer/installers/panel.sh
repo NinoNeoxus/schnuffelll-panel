@@ -202,20 +202,25 @@ configure_environment() {
     success "Environment configured"
 }
 
-setup_database() {
-    output "Setting up database..."
+create_database() {
+    output "Creating database and user..."
 
     # Create database and user
     create_db_user "$DB_USER" "$DB_PASS" "$DB_HOST"
     create_db "$DB_NAME" "$DB_USER" "$DB_HOST"
 
-    # Verify connection
+    success "Database and user created"
+}
+
+run_migrations() {
+    output "Running database migrations..."
+
     cd "$PANEL_DIR"
     
     # Run migrations
     php artisan migrate --seed --force
 
-    success "Database setup complete"
+    success "Database migrations complete"
 }
 
 create_admin_user() {
@@ -681,8 +686,9 @@ main() {
     install_composer
     download_panel
     install_composer_deps
-    setup_database
+    create_database
     configure_environment
+    run_migrations
     create_admin_user
     set_permissions
     configure_crontab
