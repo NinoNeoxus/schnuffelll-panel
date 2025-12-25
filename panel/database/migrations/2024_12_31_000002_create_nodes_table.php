@@ -10,12 +10,14 @@ return new class extends Migration
     {
         Schema::create('nodes', function (Blueprint $table) {
             $table->id();
+            $table->char('uuid', 36)->unique();
             $table->string('name');
+            $table->text('description')->nullable();
             $table->foreignId('location_id')->constrained()->cascadeOnDelete();
             $table->boolean('public')->default(true);
             $table->string('fqdn');
-            $table->string('scheme')->default('https'); // http or https
-            $table->integer('behind_proxy')->default(0); // For Cloudflare etc
+            $table->string('scheme')->default('https');
+            $table->integer('behind_proxy')->default(0);
             $table->integer('memory')->default(0);
             $table->integer('memory_overallocate')->default(0);
             $table->integer('disk')->default(0);
@@ -24,6 +26,8 @@ return new class extends Migration
             $table->text('daemon_token')->nullable();
             $table->integer('daemon_listen')->default(8080);
             $table->integer('daemon_sftp')->default(2022);
+            $table->string('daemon_base')->default('/var/lib/pterodactyl/volumes');
+            $table->unsignedInteger('upload_size')->default(100);
             $table->boolean('maintenance_mode')->default(false);
             $table->timestamps();
         });
