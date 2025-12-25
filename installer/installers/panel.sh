@@ -123,24 +123,30 @@ install_composer() {
 download_panel() {
     output "Downloading Schnuffelll Panel..."
 
+    # Clone to temp directory first
+    local TEMP_CLONE="/tmp/schnuffelll-clone"
+    rm -rf "$TEMP_CLONE"
+    
+    git clone --depth 1 https://github.com/NinoNeoxus/schnuffelll-panel.git "$TEMP_CLONE" || {
+        error "Failed to clone repository"
+        exit 1
+    }
+
+    # Create panel directory
     mkdir -p "$PANEL_DIR"
-    cd "$PANEL_DIR"
-
-    # Clone from GitHub
-    if [ -d "$PANEL_DIR/.git" ]; then
-        git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || true
+    
+    # Copy panel files (panel is in subfolder)
+    if [ -d "$TEMP_CLONE/panel" ]; then
+        cp -r "$TEMP_CLONE/panel"/* "$PANEL_DIR/"
+        cp -r "$TEMP_CLONE/panel"/.[!.]* "$PANEL_DIR/" 2>/dev/null || true
     else
-        rm -rf "$PANEL_DIR"/* "$PANEL_DIR"/.[!.]* 2>/dev/null || true
-        git clone https://github.com/NinoNeoxus/schnuffelll-panel.git "$PANEL_DIR" 2>/dev/null || {
-            error "Failed to clone repository"
-            exit 1
-        }
+        # If no panel subfolder, copy everything
+        cp -r "$TEMP_CLONE"/* "$PANEL_DIR/"
+        cp -r "$TEMP_CLONE"/.[!.]* "$PANEL_DIR/" 2>/dev/null || true
     fi
 
-    # Copy panel source if exists
-    if [ -d "$PANEL_DIR/panel" ]; then
-        cp -r "$PANEL_DIR/panel"/* "$PANEL_DIR/" 2>/dev/null || true
-    fi
+    # Cleanup
+    rm -rf "$TEMP_CLONE"
 
     success "Panel downloaded"
 }
